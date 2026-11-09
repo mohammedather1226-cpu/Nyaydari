@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LegalEase — Legal clarity, made simple",
+  title: "Nyaydari — Legal clarity, made simple",
   description:
-    "Get a clearer starting point for your legal questions and documents with LegalEase.",
+    "Get a clearer starting point for your legal questions and documents with Nyaydari.",
 };
 
 export default function RootLayout({
@@ -38,10 +38,10 @@ export default function RootLayout({
                   <path d="M12 3v18M5 7h14M7 7l-4 8h8L7 7Zm10 0-4 8h8l-4-8ZM7 21h10" />
                 </svg>
               </span>
-              <span>Legal<span className="brand-light">Ease</span></span>
+              <span>Nyay<span className="brand-light">dari</span></span>
             </Link>
             <span>Clearer first steps. Better-informed decisions.</span>
-            <span>© {new Date().getFullYear()} LegalEase</span>
+            <span>© {new Date().getFullYear()} Nyaydari</span>
           </div>
         </footer>
       </body>

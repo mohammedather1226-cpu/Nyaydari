@@ -35,7 +35,7 @@ export default function Home() {
             <h1>Understand Your Legal Problems, <span>Simply</span></h1>
             <p className="hero-description">
               Get a clearer starting point for life&apos;s legal questions.
-              LegalEase offers initial legal information and document
+              Nyaydari offers initial legal information and document
               assistance, in language that makes sense.
             </p>
             <div className="hero-actions">
@@ -110,7 +110,7 @@ export default function Home() {
         <span aria-hidden="true" className="disclaimer-icon">i</span>
         <p>
           <strong>A helpful place to start, not a substitute for a lawyer.</strong>
-          {" "}LegalEase provides general information only. It is not legal advice
+          {" "}Nyaydari provides general information only. It is not legal advice
           and does not create an attorney-client relationship. For advice about
           your situation, speak with a qualified legal professional.
         </p>

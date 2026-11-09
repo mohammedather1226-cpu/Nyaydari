@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test src/lib/document-verification.test.ts src/app/api/process-documents/route.test.ts"
   },
   "dependencies": {
     "next": "16.4.3",

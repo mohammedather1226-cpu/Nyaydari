@@ -1,5 +1,11 @@
 import { PDFParse } from "pdf-parse";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server.js";
+import { createHash } from "node:crypto";
+import {
+  isSupportedDocumentType,
+  verifyDocumentType,
+  type VerificationStatus,
+} from "../../../lib/document-verification.ts";
 
 const MAX_FILE_COUNT = 10;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -14,6 +20,8 @@ type FileResult = {
   extractedTextLength: number;
   extractedText: string | null;
   extractedTextTruncated: boolean;
+  verificationStatus: VerificationStatus;
+  verificationExplanation: string;
   error: string | null;
 };
 
@@ -43,6 +51,10 @@ function fileResult(
     extractedTextLength: values.extractedTextLength ?? 0,
     extractedText: values.extractedText ?? null,
     extractedTextTruncated: values.extractedTextTruncated ?? false,
+    verificationStatus: values.verificationStatus ?? "unreadable",
+    verificationExplanation:
+      values.verificationExplanation ??
+      "The PDF could not be checked against a supported checklist type.",
     error: values.error ?? null,
   };
 }
@@ -52,11 +64,20 @@ function hasPdfSignature(bytes: Uint8Array) {
   return header.includes("%PDF-");
 }
 
-async function processFile(file: File, documentType: string | null): Promise<FileResult> {
+async function processFile(
+  file: File,
+  documentType: string | null,
+  category: string | null,
+): Promise<FileResult> {
+  const unreadableVerification = {
+    verificationStatus: "unreadable" as const,
+    verificationExplanation: "The PDF could not be read, so its document type could not be checked.",
+  };
   if (file.size === 0) {
     return fileResult(file, documentType, {
       uploadStatus: "rejected",
       status: "error",
+      ...unreadableVerification,
       error: "The file is empty.",
     });
   }
@@ -64,6 +85,7 @@ async function processFile(file: File, documentType: string | null): Promise<Fil
     return fileResult(file, documentType, {
       uploadStatus: "rejected",
       status: "error",
+      ...unreadableVerification,
       error: "The file exceeds the 10 MB limit.",
     });
   }
@@ -76,6 +98,7 @@ async function processFile(file: File, documentType: string | null): Promise<Fil
     return fileResult(file, documentType, {
       uploadStatus: "rejected",
       status: "error",
+      ...unreadableVerification,
       error: "Unsupported file type. Only PDF files are accepted.",
     });
   }
@@ -85,6 +108,7 @@ async function processFile(file: File, documentType: string | null): Promise<Fil
     return fileResult(file, documentType, {
       uploadStatus: "rejected",
       status: "error",
+      ...unreadableVerification,
       error: "The file does not contain a valid PDF header.",
     });
   }
@@ -94,21 +118,34 @@ async function processFile(file: File, documentType: string | null): Promise<Fil
     parser = new PDFParse({ data });
     const result = await parser.getText();
     const text = result.text;
+    const documentText = text.replace(/--\s*\d+\s+of\s+\d+\s*--/g, "").trim();
 
-    if (!text.trim()) {
+    if (!documentText) {
       return fileResult(file, documentType, {
         uploadStatus: "received",
         status: "unreadable",
+        verificationStatus: "unreadable",
+        verificationExplanation:
+          "The PDF has no extractable text. Upload a text-based PDF or review the file yourself.",
         error: "No text could be extracted. This may be a scanned or text-free PDF; OCR was not performed.",
       });
     }
 
+    const verification =
+      documentType && category
+        ? verifyDocumentType(category, documentType, text)
+        : {
+            status: "needs_review" as const,
+            explanation: "Select a supported checklist document type to check the extracted text.",
+          };
     return fileResult(file, documentType, {
       uploadStatus: "received",
       status: "processed",
       extractedTextLength: text.length,
       extractedText: text.slice(0, MAX_RETURNED_TEXT_LENGTH),
       extractedTextTruncated: text.length > MAX_RETURNED_TEXT_LENGTH,
+      verificationStatus: verification.status,
+      verificationExplanation: verification.explanation,
     });
   } catch (error) {
     console.error(
@@ -118,6 +155,7 @@ async function processFile(file: File, documentType: string | null): Promise<Fil
     return fileResult(file, documentType, {
       uploadStatus: "received",
       status: "error",
+      ...unreadableVerification,
       error: "The PDF was received, but its text could not be extracted. It may be damaged or password-protected.",
     });
   } finally {
@@ -225,8 +263,52 @@ export async function POST(request: NextRequest) {
   const documentTypes = documentTypeEntries.length
     ? (documentTypeEntries as string[]).map((value) => value.trim())
     : files.map(() => null);
+
+  const categoryEntry = formData.get("category");
+  const category =
+    typeof categoryEntry === "string" ? categoryEntry.trim() : null;
+  if (
+    documentTypes.some((documentType) => documentType !== null) &&
+    (!category ||
+      documentTypes.some(
+        (documentType) =>
+          documentType !== null &&
+          !isSupportedDocumentType(category, documentType),
+      ))
+  ) {
+    return jsonResponse(
+      {
+        success: false,
+        initialImplementation: true,
+        files: [],
+        error: "Each document type must belong to the submitted supported complaint category.",
+      },
+      400,
+    );
+  }
+
+  const eligibleFiles = files.filter((file) => file.size > 0 && file.size <= MAX_FILE_SIZE);
+  const fileHashes = await Promise.all(
+    eligibleFiles.map(async (file) =>
+      createHash("sha256")
+        .update(new Uint8Array(await file.arrayBuffer()))
+        .digest("hex"),
+    ),
+  );
+  if (new Set(fileHashes).size !== fileHashes.length) {
+    return jsonResponse(
+      {
+        success: false,
+        initialImplementation: true,
+        files: [],
+        error: "The same PDF cannot be assigned more than once in a request.",
+      },
+      400,
+    );
+  }
+
   const results = await Promise.all(
-    files.map((file, index) => processFile(file, documentTypes[index])),
+    files.map((file, index) => processFile(file, documentTypes[index], category)),
   );
   const success = results.every(
     (result) =>

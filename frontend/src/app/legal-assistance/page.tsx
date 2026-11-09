@@ -1,14 +1,14 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { calculateDocumentReadiness } from "@/lib/document-readiness";
+import type { VerificationStatus } from "@/lib/document-verification";
 
 const workflowSteps = [
-  { id: "issue", label: "Describe issue" },
-  { id: "documents", label: "Select documents" },
-  { id: "upload", label: "Add files" },
-  { id: "assessment", label: "Assessment" },
-  { id: "summary", label: "Case summary" },
-  { id: "legalAid", label: "Legal aid (optional)" },
+  { id: "issue", label: "Describe your problem" },
+  { id: "documents", label: "Review identified issue" },
+  { id: "upload", label: "Upload documents" },
+  { id: "summary", label: "Review your summary" },
 ] as const;
 
 const acceptedExtensions = [".pdf"];
@@ -16,7 +16,7 @@ const acceptedMimeTypes = new Set(["application/pdf"]);
 const maxFileSize = 10 * 1024 * 1024;
 const maxExtractedTextPreviewLength = 1200;
 
-type WorkflowStage = (typeof workflowSteps)[number]["id"];
+type WorkflowStage = "issue" | "documents" | "upload" | "assessment" | "summary" | "legalAid";
 type IssueAnalysis = {
   success: boolean;
   demo: boolean;
@@ -42,6 +42,8 @@ type FileSelection = {
   processingStatus: "processing" | "processed" | "unreadable" | "error";
   extractedTextLength: number;
   extractedTextPreview: string;
+  verificationStatus: VerificationStatus | null;
+  verificationExplanation: string;
   message: string;
 };
 
@@ -53,6 +55,8 @@ type ProcessDocumentResult = {
   extractedTextLength: number;
   extractedText: string | null;
   extractedTextTruncated: boolean;
+  verificationStatus: VerificationStatus;
+  verificationExplanation: string;
   error: string | null;
 };
 
@@ -62,6 +66,123 @@ type ProcessDocumentsResponse = {
   files: ProcessDocumentResult[];
   error: string | null;
 };
+
+const categoryLabels: Record<string, string> = {
+  rental_property: "Rental and Property",
+  employment: "Employment",
+  consumer: "Consumer Rights",
+};
+
+const documentReasons: Record<string, string> = {
+  "Employment agreement or offer letter": "May help confirm the role and agreed employment terms.",
+  "Recent payslips or wage records": "May help you organize the wages paid and any amount in question.",
+  "Work-related notices or communications": "May provide a record of conversations about the issue.",
+  "Records of hours worked or attendance": "May help compare the time worked with wage records.",
+  "Rental or lease agreement": "May help clarify the rental terms and responsibilities discussed.",
+  "Rent and security-deposit payment records": "May help track rent and deposit amounts and payment dates.",
+  "Written communications with the landlord or property manager": "May provide a record of requests and responses.",
+  "Repair requests, notices, or property-condition records": "May help document reported repairs or the property's condition.",
+  "Receipt, invoice, or order confirmation": "May help identify the purchase or service and the amount paid.",
+  "Warranty or service terms": "May help you refer to the product or service information provided.",
+  "Written communications with the seller or service provider": "May provide a record of your request and the provider's response.",
+  "Photos or records documenting the product or service issue": "May help you keep a record of the issue described.",
+};
+
+function getCategoryLabel(category: string | null | undefined) {
+  return category
+    ? categoryLabels[category] ?? "Other"
+    : "Not identified";
+}
+
+function getVerificationLabel(status: VerificationStatus) {
+  const labels: Record<VerificationStatus, string> = {
+    matched: "Appears to match",
+    needs_review: "Needs your review",
+    mismatch: "May be a different document",
+    unreadable: "Could not be checked",
+  };
+  return labels[status];
+}
+
+function getIssueExplanation(issue: string, category: string | null | undefined) {
+  const examplesByCategory: Record<string, { pattern: RegExp; topic: string; records: string }[]> = {
+    rental_property: [
+      {
+        pattern: /\b(security deposit|rental deposit|deposit)\b/i,
+        topic: "a rental security deposit",
+        records: "your rental agreement, deposit payment record, move-out details, and messages with the landlord",
+      },
+      {
+        pattern: /\b(evict(?:ion)?|vacat(?:e|ion)|forced to leave|lock(?:ed)? out|leave the (?:home|house|apartment|property))\b/i,
+        topic: "a tenancy or request to leave a rented property",
+        records: "your rental agreement, notices or messages, and relevant dates",
+      },
+      {
+        pattern: /\b(repair|maintenance|leak|broken|unsafe|mould|mold|damp|fix)\b/i,
+        topic: "repairs or maintenance at a rented property",
+        records: "your rental agreement, repair requests, photographs, and responses",
+      },
+      {
+        pattern: /\b(rent|rental agreement|lease|tenan(?:t|cy)|landlord|property manager)\b/i,
+        topic: "a rental agreement or tenancy matter",
+        records: "your rental agreement, payment records, notices, and relevant messages",
+      },
+    ],
+    employment: [
+      {
+        pattern: /\b(final (?:wages?|salary|pay|settlement)|last (?:wages?|salary|pay)|resign(?:ed|ation)?|left (?:my )?job)\b/i,
+        topic: "final wages or payment after leaving a job",
+        records: "your employment records, final payslips, resignation communications, and payment records",
+      },
+      {
+        pattern: /\b(unpaid|withheld|delayed|missing|not paid|late)\b.{0,50}\b(salary|wages?|pay|payment)\b|\b(salary|wages?|pay|payment)\b.{0,50}\b(unpaid|withheld|delayed|missing|not paid|late)\b/i,
+        topic: "salary or wages that you say have not been paid",
+        records: "your employment records, payslips, attendance records, and messages about payment",
+      },
+      {
+        pattern: /\b(terminat(?:ed|ion)|dismiss(?:ed|al)|fired|removed from (?:my )?(?:job|position))\b/i,
+        topic: "a concern about the end of your employment",
+        records: "your employment records and communications about the decision",
+      },
+      {
+        pattern: /\b(workplace|employer|employee|manager|supervisor|job|work)\b/i,
+        topic: "a workplace or employment matter",
+        records: "your employment records and relevant workplace communications",
+      },
+    ],
+    consumer: [
+      {
+        pattern: /\b(refund|reimburse(?:ment)?|money back|return(?:ed)? (?:the )?(?:product|item|order))\b/i,
+        topic: "a refund or payment return request",
+        records: "your receipt or order confirmation, payment record, return details, and messages with the provider",
+      },
+      {
+        pattern: /\b(defect(?:ive)?|damaged|broken|faulty|not working)\b/i,
+        topic: "a product described as defective or damaged",
+        records: "your receipt, product details, photographs, and messages with the seller",
+      },
+      {
+        pattern: /\b(not delivered|never arrived|missing (?:delivery|order|package)|did not (?:arrive|deliver))\b/i,
+        topic: "a product or service you say was not delivered",
+        records: "your order confirmation, payment record, delivery details, and messages with the provider",
+      },
+      {
+        pattern: /\b(warranty|replacement|repair|service plan)\b/i,
+        topic: "a warranty, repair, or replacement concern",
+        records: "your receipt, warranty or service information, and messages with the provider",
+      },
+    ],
+  };
+
+  const categoryKey = category ?? "";
+  const matchingIssue = examplesByCategory[categoryKey]?.find(({ pattern }) =>
+    pattern.test(issue),
+  );
+  const topic = matchingIssue?.topic ?? `${getCategoryLabel(categoryKey).toLowerCase()} matter`;
+  const records = matchingIssue?.records ?? "your original complaint and any related records or communications";
+
+  return `Your complaint is grouped under ${getCategoryLabel(categoryKey)} based on its wording. It appears to concern ${topic}. You described: “${issue}” Relevant information may include ${records}.`;
+}
 
 function isProcessDocumentsResponse(value: unknown): value is ProcessDocumentsResponse {
   if (typeof value !== "object" || value === null) return false;
@@ -79,6 +200,11 @@ function isProcessDocumentsResponse(value: unknown): value is ProcessDocumentsRe
         (file.uploadStatus === "received" || file.uploadStatus === "rejected") &&
         (file.status === "processed" || file.status === "unreadable" || file.status === "error") &&
         typeof file.extractedTextLength === "number" &&
+        (file.verificationStatus === "matched" ||
+          file.verificationStatus === "needs_review" ||
+          file.verificationStatus === "mismatch" ||
+          file.verificationStatus === "unreadable") &&
+        typeof file.verificationExplanation === "string" &&
         (typeof file.error === "string" || file.error === null)
       );
     }) &&
@@ -261,6 +387,8 @@ export default function LegalAssistancePage() {
         processingStatus: message ? ("error" as const) : ("processing" as const),
         extractedTextLength: 0,
         extractedTextPreview: "",
+        verificationStatus: null,
+        verificationExplanation: "",
         message: message || "Uploading to this application for initial PDF text extraction…",
       };
     });
@@ -297,6 +425,9 @@ export default function LegalAssistancePage() {
           const formData = new FormData();
           formData.append("files", selectedFile.file, selectedFile.name);
           formData.append("documentTypes", selectedFile.documentType);
+          if (issueAnalysis?.category) {
+            formData.append("category", issueAnalysis.category);
+          }
 
           try {
             const response = await fetch("/api/process-documents", {
@@ -327,7 +458,7 @@ export default function LegalAssistancePage() {
                   ? "unreadable"
                   : "error";
             const message = result.error
-              ?? `Text extracted (${result.extractedTextLength.toLocaleString()} characters). Contents have not been assessed or verified.`;
+              ?? `Text extracted (${result.extractedTextLength.toLocaleString()} characters). The type check is preliminary and does not assess legal relevance or authenticity.`;
 
             setFiles((current) =>
               current.map((item) =>
@@ -340,6 +471,8 @@ export default function LegalAssistancePage() {
                       extractedTextPreview: result.extractedText
                         ? result.extractedText.slice(0, maxExtractedTextPreviewLength)
                         : "",
+                      verificationStatus: result.verificationStatus,
+                      verificationExplanation: result.verificationExplanation,
                       message,
                     }
                   : item,
@@ -388,29 +521,31 @@ export default function LegalAssistancePage() {
   };
 
   const relevantDocuments = issueAnalysis?.requiredDocuments ?? [];
-  const readableRecommendedDocuments = relevantDocuments.filter((document) =>
-    files.some(
-      (file) =>
-        file.documentType === document &&
-        file.uploadStatus === "uploaded" &&
-        file.processingStatus === "processed",
-    ),
+  const readiness = calculateDocumentReadiness(
+    relevantDocuments,
+    files
+      .filter((file) => file.uploadStatus === "uploaded" && file.verificationStatus)
+      .map((file) => ({
+        documentType: file.documentType,
+        name: file.name,
+        uploadStatus: "received" as const,
+        verificationStatus: file.verificationStatus as VerificationStatus,
+      })),
   );
-  const unreadableRecommendedDocuments = relevantDocuments.filter((document) =>
-    files.some(
-      (file) =>
-        file.documentType === document &&
-        file.uploadStatus === "uploaded" &&
-        file.processingStatus === "unreadable" &&
-        !readableRecommendedDocuments.includes(document),
-    ),
-  );
-  const missingRecommendedDocuments = relevantDocuments.filter(
-    (document) => !readableRecommendedDocuments.includes(document),
-  );
-  const documentCompleteness = relevantDocuments.length
-    ? Math.round((readableRecommendedDocuments.length / relevantDocuments.length) * 100)
-    : null;
+  const missingRecommendedDocuments = readiness.documents.missing;
+  const documentCompleteness = readiness.percentage;
+  const issueExplanation =
+    submittedProblem && issueAnalysis?.category
+      ? getIssueExplanation(submittedProblem, issueAnalysis.category)
+      : "";
+  const progressStageIndex =
+    stage === "issue"
+      ? 0
+      : stage === "documents"
+        ? 1
+        : stage === "upload" || stage === "assessment"
+          ? 2
+          : 3;
   const available = relevantDocuments.filter((document) =>
     availableDocuments.includes(document),
   );
@@ -423,6 +558,31 @@ export default function LegalAssistancePage() {
   const missingRequirements = available.filter(
     (document) => !completedRequirements.includes(document),
   );
+  const getDocumentUploadStatus = (document: string) => {
+    const matchingFiles = files.filter((file) => file.documentType === document);
+    if (matchingFiles.some((file) => file.uploadStatus === "uploading")) {
+      return "Uploading…";
+    }
+    if (matchingFiles.some((file) => file.processingStatus === "processed")) {
+      return "Uploaded successfully · Text extracted";
+    }
+    if (matchingFiles.some((file) => file.processingStatus === "unreadable")) {
+      return "Unreadable PDF";
+    }
+    if (matchingFiles.some((file) => file.uploadStatus === "error")) {
+      return "Upload failed";
+    }
+    if (matchingFiles.some((file) => file.processingStatus === "error")) {
+      return "Uploaded successfully · Text extraction failed";
+    }
+    return "Not uploaded";
+  };
+  const getDocumentStatusClass = (status: string) =>
+    status === "Not uploaded"
+      ? "document-status document-status-pending"
+      : status === "Unreadable PDF" || status === "Upload failed" || status.includes("failed")
+        ? "document-status document-status-error"
+        : "document-status document-status-success";
   const jurisdictionLabel = issueAnalysis
     ? issueAnalysis.jurisdiction ?? ""
     : [submittedState, submittedJurisdiction].filter(Boolean).join(", ");
@@ -433,8 +593,6 @@ export default function LegalAssistancePage() {
   const retainedFiles = files.filter(
     (file) => !availableDocuments.includes(file.documentType),
   );
-  const currentStageIndex = workflowSteps.findIndex((step) => step.id === stage);
-
   return (
     <div className="page-shell legal-workflow">
       <div className="page-intro">
@@ -448,12 +606,12 @@ export default function LegalAssistancePage() {
 
       <nav className="workflow-progress" aria-label="Legal assistance progress">
         {workflowSteps.map((step, index) => {
-          const isComplete = index < currentStageIndex;
+          const isComplete = index < progressStageIndex;
           return (
             <div
-              className={`workflow-progress-step${stage === step.id ? " is-current" : ""}${isComplete ? " is-complete" : ""}`}
+              className={`workflow-progress-step${index === progressStageIndex ? " is-current" : ""}${isComplete ? " is-complete" : ""}`}
               key={step.id}
-              aria-current={stage === step.id ? "step" : undefined}
+              aria-current={index === progressStageIndex ? "step" : undefined}
             >
               <span>{isComplete ? "✓" : `0${index + 1}`}</span>
               <span>{step.label}</span>
@@ -463,11 +621,11 @@ export default function LegalAssistancePage() {
       </nav>
 
       {hasSubmittedIssue && (
-        <section className="case-summary panel" aria-labelledby="case-summary-title">
+        <section className="case-summary case-summary-redesigned panel" aria-labelledby="case-summary-title">
           <div className="case-summary-heading">
             <div>
-              <div className="result-label">YOUR CASE SUMMARY</div>
-              <h2 id="case-summary-title">Your information, kept in view</h2>
+              <div className="result-label">CASE SUMMARY</div>
+              <h2 id="case-summary-title">Review your complaint</h2>
             </div>
             <button
               className="button button-secondary edit-issue-button"
@@ -477,30 +635,29 @@ export default function LegalAssistancePage() {
               Edit issue
             </button>
           </div>
-          <dl className="case-summary-grid">
+          <div className="case-summary-highlight">
             <div className="case-summary-original">
-              <dt>Your original legal problem</dt>
-              <dd>{submittedProblem}</dd>
+              <div className="result-label">YOUR COMPLAINT</div>
+              <p>{submittedProblem}</p>
             </div>
-            <div>
-              <dt>Identified legal issue</dt>
-              <dd>{issueAnalysis?.identifiedIssue ?? "Not available"}</dd>
+            <div className="case-summary-category">
+              <div className="result-label">IDENTIFIED CATEGORY</div>
+              <span className="category-tag">
+                {getCategoryLabel(issueAnalysis?.category)}
+              </span>
             </div>
-            <div>
-              <dt>Legal category</dt>
-              <dd><span className="category-tag">{issueAnalysis?.category ?? "Unclear / unsupported"}</span></dd>
-            </div>
-            <div>
-              <dt>In simple language</dt>
-              <dd>{issueAnalysis?.explanation}</dd>
-            </div>
-            <div>
-              <dt>Jurisdiction / state</dt>
-              <dd>{jurisdictionLabel || "Not specified"}</dd>
-            </div>
-          </dl>
-          <p className="demo-inline-note">
-            {issueAnalysis?.disclaimer}
+          </div>
+          <section className="case-summary-explanation" aria-labelledby="simple-explanation-title">
+            <h3 id="simple-explanation-title">In simple language</h3>
+            <p>{issueExplanation}</p>
+            <span>This is an automated explanation based on the wording of your complaint.</span>
+          </section>
+          <div className="case-summary-jurisdiction">
+            <strong>Jurisdiction</strong>
+            <span>{jurisdictionLabel || "Not specified"}</span>
+          </div>
+          <p className="case-summary-disclaimer">
+            This is an automated preliminary explanation based on your complaint, not legal advice or a verified legal assessment. Suggested documents are general examples and may not apply to every situation. Consult a qualified legal professional for advice.
           </p>
         </section>
       )}
@@ -621,36 +778,55 @@ export default function LegalAssistancePage() {
             <div>
               <div className="eyebrow"><span /> PRELIMINARY MACHINE-LEARNING CLASSIFICATION</div>
               <h2>Start with documents you may have.</h2>
-              <p>{issueAnalysis?.identifiedIssue ?? "The demo could not classify this issue."}</p>
+              <p>
+                This complaint is grouped under {getCategoryLabel(issueAnalysis?.category)}.
+              </p>
             </div>
             <span className="demo-badge">DEMO · TRAINED ML CLASSIFIER</span>
           </div>
           <div className="sample-alert" role="note">
             <span aria-hidden="true">ⓘ</span>
-            <span><strong>Preliminary checklist only.</strong> {issueAnalysis?.explanation} These suggestions are not mandatory legal requirements.</span>
+            <span><strong>Preliminary checklist only.</strong> These general suggestions are not mandatory legal requirements.</span>
           </div>
           <article className="result-card">
             <div className="result-label">
-              {issueAnalysis?.category && issueAnalysis.category !== "Unclear / unsupported"
-                ? `DOCUMENTS FOR ${issueAnalysis.category.toUpperCase()}`
+              {issueAnalysis?.category
+                ? `DOCUMENTS FOR ${getCategoryLabel(issueAnalysis.category).toUpperCase()}`
                 : "SUGGESTED DOCUMENTS"}
             </div>
             <h2 id="documents-title" className="workflow-section-title">Which of these do you already have?</h2>
             <div className="document-checklist">
-              {relevantDocuments.map((document) => {
+              {relevantDocuments.map((document, index) => {
                 const isAvailable = availableDocuments.includes(document);
+                const status = getDocumentUploadStatus(document);
+                const inputId = `checklist-file-${index}`;
                 return (
-                  <label className="checklist-row" key={document}>
-                    <input
-                      type="checkbox"
-                      checked={isAvailable}
-                      onChange={() => toggleDocument(document)}
-                    />
-                    <span>{document}</span>
-                    <span className={isAvailable ? "status-available" : "status-missing"}>
-                      {isAvailable ? "Selected as available" : "Not selected"}
-                    </span>
-                  </label>
+                  <article className="checklist-card" key={document}>
+                    <div className="checklist-card-copy">
+                      <label className="checklist-card-title">
+                        <input
+                          type="checkbox"
+                          checked={isAvailable}
+                          onChange={() => toggleDocument(document)}
+                        />
+                        <span>{document}</span>
+                      </label>
+                      <p>{documentReasons[document] ?? "May help you organize records related to your complaint."}</p>
+                    </div>
+                    <div className="checklist-card-actions">
+                      <span className={getDocumentStatusClass(status)}>{status}</span>
+                      <label className="button button-secondary checklist-upload-button" htmlFor={inputId}>
+                        {status === "Not uploaded" || status === "Upload failed" ? "Upload PDF" : "Replace PDF"}
+                      </label>
+                      <input
+                        id={inputId}
+                        className="visually-hidden-file-input"
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={(event) => handleFiles(document, event)}
+                      />
+                    </div>
+                  </article>
                 );
               })}
               {relevantDocuments.length === 0 && (
@@ -706,19 +882,13 @@ export default function LegalAssistancePage() {
                 {available.map((document, index) => {
                   const matchingFiles = files.filter((file) => file.documentType === document);
                   const isComplete = matchingFiles.some((file) => file.uploadStatus === "uploaded");
-                  const isProcessing = matchingFiles.some((file) => file.uploadStatus === "uploading");
+                  const status = getDocumentUploadStatus(document);
                   return (
                     <section className="upload-requirement" key={document}>
                       <div className="upload-requirement-heading">
                         <div>
                           <h3>{document}</h3>
-                          <span className={isComplete ? "status-available" : "status-missing"}>
-                            {isProcessing
-                              ? "Uploading and extracting text…"
-                              : isComplete
-                                ? "File received by server"
-                                : "File required"}
-                          </span>
+                          <span className={getDocumentStatusClass(status)}>{status}</span>
                         </div>
                         <label className="button button-secondary upload-file-button" htmlFor={`document-file-${index}`}>
                           {isComplete ? "Add another file" : "Choose PDF"}
@@ -738,15 +908,25 @@ export default function LegalAssistancePage() {
                               <span className="file-status-name">{file.name}</span>
                               <span>
                                 {file.uploadStatus === "uploading"
-                                  ? "Uploading and extracting text…"
+                                  ? "Uploading…"
                                   : file.uploadStatus === "error"
-                                    ? `Upload failed. ${file.message}`
+                                    ? file.message
                                     : file.processingStatus === "processed"
-                                      ? `Received by server · ${file.extractedTextLength.toLocaleString()} characters extracted · ${file.message}`
+                                      ? `${file.extractedTextLength.toLocaleString()} characters extracted. ${file.message}`
                                       : file.processingStatus === "unreadable"
-                                        ? `Received by server, but unreadable. ${file.message}`
-                                        : `Received by server, but text extraction failed. ${file.message}`}
+                                        ? file.message
+                                        : `Text extraction failed. ${file.message}`}
                               </span>
+                              {file.verificationStatus && (
+                                <span
+                                  className={`verification-status verification-status-${file.verificationStatus}`}
+                                  role="status"
+                                >
+                                  <strong>{getVerificationLabel(file.verificationStatus)}</strong>
+                                  {" · "}
+                                  {file.verificationExplanation}
+                                </span>
+                              )}
                               {file.processingStatus === "processed" &&
                                 file.extractedTextPreview && (
                                   <details>
@@ -767,7 +947,11 @@ export default function LegalAssistancePage() {
                                 onClick={() => setFiles((current) => current.filter((item) => item.id !== file.id))}
                                 aria-label={`Remove ${file.name} for ${document}`}
                               >
-                                Remove
+                                {file.verificationStatus === "mismatch" ||
+                                file.verificationStatus === "needs_review" ||
+                                file.verificationStatus === "unreadable"
+                                  ? "Remove and replace"
+                                  : "Remove"}
                               </button>
                             </li>
                           ))}
@@ -792,10 +976,10 @@ export default function LegalAssistancePage() {
                       <span className="file-status-name">{file.name} · {file.documentType}</span>
                       <span>
                         {file.uploadStatus === "uploaded"
-                          ? `Received by server, retained for a deselected requirement. ${file.message}`
+                          ? `${getDocumentUploadStatus(file.documentType)} · retained for a deselected requirement. ${file.message}`
                           : file.uploadStatus === "uploading"
-                            ? "Uploading and extracting text…"
-                            : `Upload failed. ${file.message}`}
+                            ? "Uploading…"
+                            : file.message}
                       </span>
                       <button
                         type="button"
@@ -842,13 +1026,13 @@ export default function LegalAssistancePage() {
                 <div>
                   <div className="eyebrow"><span /> PRELIMINARY CASE ASSESSMENT</div>
                   <h2>What this demo can—and can&apos;t—tell you.</h2>
-                  <p>This preliminary document-readiness summary counts recommended document types with a successful upload and readable extracted text. It does not interpret legal relevance.</p>
+                  <p>This preliminary readiness score counts checklist document types whose extracted text appears to match the requested type. It does not interpret legal relevance.</p>
                 </div>
                 <span className="demo-badge">INITIAL PROCESSING · NOT VERIFIED</span>
               </div>
               <div className="sample-alert" role="note">
                 <span aria-hidden="true">ⓘ</span>
-                <span><strong>Text extraction is not legal analysis.</strong> Extracting PDF text does not verify authenticity or establish whether a legal claim will succeed. A qualified legal professional must review the evidence. Scanned PDFs may have no extractable text; OCR is not performed.</span>
+                <span><strong>Document checks are preliminary and based on extractable PDF text.</strong> They do not verify authenticity, signatures, legal validity, or whether the document proves your claim. Please review the uploaded documents yourself. Scanned PDFs may have no extractable text; OCR is not performed.</span>
               </div>
               <article className="result-card result-wide">
                 <div className="result-label">DOCUMENT STATUS</div>
@@ -864,6 +1048,11 @@ export default function LegalAssistancePage() {
                             ? `Unreadable: ${file.message}`
                             : `Text extraction failed: ${file.message}`}
                       </span>
+                      <span className={`verification-status verification-status-${file.verificationStatus ?? "unreadable"}`}>
+                        <strong>{getVerificationLabel(file.verificationStatus ?? "unreadable")}</strong>
+                        {" · "}
+                        {file.verificationExplanation || "The document type could not be checked."}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -874,25 +1063,44 @@ export default function LegalAssistancePage() {
               <div className="results-grid assessment-grid">
                 <article className="result-card result-featured">
                   <div className="result-label">DOCUMENT COMPLETENESS</div>
-                  <h3>
-                    {documentCompleteness === null
-                      ? "Assessment unavailable"
-                      : `${documentCompleteness}% · ${readableRecommendedDocuments.length}/${relevantDocuments.length} recommended document types readable`}
-                  </h3>
-                  <p className="result-body">
-                    {documentCompleteness === null
-                      ? "No recommended checklist was returned, so document completeness cannot be calculated."
-                      : documentCompleteness === 100
-                        ? "All recommended document types have at least one successful upload with readable extracted text. This does not assess legal relevance or sufficiency."
-                        : "This preliminary score measures only uploaded checklist items with readable extracted text. It is not a case-strength score or a prediction of legal outcomes."}
-                  </p>
+                  {documentCompleteness === null ? (
+                    <>
+                      <h3 className="readiness-title">Assessment unavailable</h3>
+                      <p className="result-body">No recommended checklist was returned, so document completeness cannot be calculated.</p>
+                    </>
+                  ) : (
+                    <div className="readiness-display">
+                      <h3 className="readiness-title">{documentCompleteness}% document readiness</h3>
+                      <div
+                        className="readiness-progress"
+                        role="progressbar"
+                        aria-label="Document readiness"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={documentCompleteness}
+                      >
+                        <span style={{ width: `${documentCompleteness}%` }} />
+                      </div>
+                      <p className="readiness-count">
+                        {readiness.matched} of {relevantDocuments.length} recommended documents appear to match the requested type
+                      </p>
+                      <p className="readiness-remaining">
+                        {readiness.missing} {readiness.missing === 1 ? "document" : "documents"} still missing
+                      </p>
+                      <p className="result-body">
+                        This preliminary type/readiness score is not a measure of authenticity, legal validity, evidence sufficiency, case strength, or likely outcome.
+                      </p>
+                    </div>
+                  )}
                 </article>
                 <article className="result-card">
                   <div className="result-label">DOCUMENT READINESS DETAILS</div>
-                  <p className="result-body"><strong>Available and readable:</strong> {readableRecommendedDocuments.length ? readableRecommendedDocuments.join("; ") : "None."}</p>
-                  <p className="result-body"><strong>Missing readable documents:</strong> {missingRecommendedDocuments.length ? missingRecommendedDocuments.join("; ") : relevantDocuments.length ? "None." : "None recommended."}</p>
-                  <p className="result-body"><strong>Uploaded but unreadable:</strong> {unreadableRecommendedDocuments.length ? unreadableRecommendedDocuments.join("; ") : "None."}</p>
-                  <p className="result-body">The checklist is preliminary, and text extraction does not verify authenticity. A qualified legal professional must review the evidence.</p>
+                  <p className="result-body"><strong>Appear to match:</strong> {readiness.documents.matched.length ? readiness.documents.matched.join("; ") : "None."}</p>
+                  <p className="result-body"><strong>Need manual review ({readiness.needsReview}):</strong> {readiness.documents.needsReview.length ? readiness.documents.needsReview.join("; ") : "None."}</p>
+                  <p className="result-body"><strong>Mismatched ({readiness.mismatch}):</strong> {readiness.documents.mismatch.length ? readiness.documents.mismatch.join("; ") : "None."}</p>
+                  <p className="result-body"><strong>Unreadable ({readiness.unreadable}):</strong> {readiness.documents.unreadable.length ? readiness.documents.unreadable.join("; ") : "None."}</p>
+                  <p className="result-body"><strong>Still missing ({readiness.missing}):</strong> {missingRecommendedDocuments.length ? missingRecommendedDocuments.join("; ") : relevantDocuments.length ? "None." : "None recommended."}</p>
+                  <p className="result-body">A type match is only a preliminary indication based on extracted text. It does not verify authenticity, signatures, legal validity, or whether the document proves your claim. Please review the uploaded documents yourself.</p>
                 </article>
                 <article className="result-card">
                   <div className="result-label">APPROXIMATE CASE DURATION</div>
@@ -943,18 +1151,41 @@ export default function LegalAssistancePage() {
               <p className="result-body"><strong>Jurisdiction:</strong> {jurisdictionLabel || "Not specified"}</p>
             </article>
             <article className="result-card">
-              <div className="result-label">CATEGORY AND EXPLANATION</div>
-              <p className="result-body"><strong>Identified issue:</strong> {issueAnalysis?.identifiedIssue ?? "No classification returned."}</p>
-              <p className="result-body"><strong>Legal category:</strong> <span className="category-tag">{issueAnalysis?.category ?? "Unclear / unsupported"}</span></p>
-              <p className="result-body">{issueAnalysis?.explanation}</p>
+              <div className="result-label">IDENTIFIED CATEGORY</div>
+              <p className="result-body"><span className="category-tag">{getCategoryLabel(issueAnalysis?.category)}</span></p>
+              <h3 className="summary-simple-language-title">In simple language</h3>
+              <p className="result-body">{issueExplanation}</p>
               <p className="result-body"><strong>Suggested documents:</strong> {issueAnalysis?.requiredDocuments.length ? issueAnalysis.requiredDocuments.join("; ") : "The demo did not identify a document checklist."}</p>
             </article>
             <article className="result-card result-wide">
               <div className="result-label">DOCUMENTS RECEIVED AND STILL MISSING</div>
-              <p className="result-body"><strong>Document completeness:</strong> {documentCompleteness === null ? "Assessment unavailable." : `${documentCompleteness}% (${readableRecommendedDocuments.length}/${relevantDocuments.length} recommended document types uploaded and readable).`}</p>
-              <p className="result-body"><strong>Available and readable:</strong> {readableRecommendedDocuments.length ? readableRecommendedDocuments.join("; ") : "None."}</p>
-              <p className="result-body"><strong>Missing readable documents:</strong> {missingRecommendedDocuments.length ? missingRecommendedDocuments.join("; ") : relevantDocuments.length ? "None." : "None recommended."}</p>
-              <p className="result-body"><strong>Uploaded but unreadable:</strong> {unreadableRecommendedDocuments.length ? unreadableRecommendedDocuments.join("; ") : "None."}</p>
+              <div className="summary-readiness">
+                {documentCompleteness === null ? (
+                  <strong>Assessment unavailable.</strong>
+                ) : (
+                  <>
+                    <h3>{documentCompleteness}% document readiness</h3>
+                    <div
+                      className="readiness-progress"
+                      role="progressbar"
+                      aria-label="Document readiness"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={documentCompleteness}
+                    >
+                      <span style={{ width: `${documentCompleteness}%` }} />
+                    </div>
+                    <p>
+                      {readiness.matched} of {relevantDocuments.length} recommended documents appear to match the requested type · {readiness.missing} {readiness.missing === 1 ? "document" : "documents"} still missing
+                    </p>
+                  </>
+                )}
+              </div>
+              <p className="result-body"><strong>Appear to match:</strong> {readiness.documents.matched.length ? readiness.documents.matched.join("; ") : "None."}</p>
+              <p className="result-body"><strong>Need manual review ({readiness.needsReview}):</strong> {readiness.documents.needsReview.length ? readiness.documents.needsReview.join("; ") : "None."}</p>
+              <p className="result-body"><strong>Mismatched ({readiness.mismatch}):</strong> {readiness.documents.mismatch.length ? readiness.documents.mismatch.join("; ") : "None."}</p>
+              <p className="result-body"><strong>Unreadable ({readiness.unreadable}):</strong> {readiness.documents.unreadable.length ? readiness.documents.unreadable.join("; ") : "None."}</p>
+              <p className="result-body"><strong>Still missing ({readiness.missing}):</strong> {missingRecommendedDocuments.length ? missingRecommendedDocuments.join("; ") : relevantDocuments.length ? "None." : "None recommended."}</p>
               <p className="result-body"><strong>Documents received ({selectedFiles.length}):</strong> {selectedFiles.length ? selectedFiles.map((file) => `${file.name} (${file.documentType})`).join("; ") : "None."}</p>
               <p className="result-body"><strong>Selected requirements received ({completedRequirements.length}/{available.length}):</strong> {completedRequirements.length ? completedRequirements.join("; ") : "None"}.</p>
               <p className="result-body"><strong>Still missing for your selections:</strong> {missingRequirements.length ? missingRequirements.join("; ") : available.length ? "No selected document type is missing an upload." : "You did not select any document types as available."}</p>

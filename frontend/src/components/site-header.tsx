@@ -10,13 +10,13 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="header-inner">
-        <Link aria-label="LegalEase home" className="brand" href="/">
+        <Link aria-label="Nyaydari home" className="brand" href="/">
           <span aria-hidden="true" className="brand-mark">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M12 3v18M5 7h14M7 7l-4 8h8L7 7Zm10 0-4 8h8l-4-8ZM7 21h10" />
             </svg>
           </span>
-          <span>Legal<span className="brand-light">Ease</span></span>
+          <span>Nyay<span className="brand-light">dari</span></span>
         </Link>
         <nav aria-label="Main navigation" className="main-nav">
           {navigation.map((item) => (
