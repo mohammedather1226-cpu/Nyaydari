@@ -1,0 +1,153 @@
+complaint_text,category
+"My employer has not paid my salary for the last two months, despite several written reminders.",employment
+"After I resigned, the company withheld my final wages and has not explained the deduction.",employment
+"I was dismissed by email without any discussion, and the reason given does not match my recent performance reviews.",employment
+"The factory requires extra shifts but the hours are missing from my wage statement.",employment
+"My manager reduced my monthly pay after I returned from approved leave and will not discuss why.",employment
+"I have worked for a small business for six months, but the owner keeps delaying payment of my wages.",employment
+"The employer says my contract ended, although I was scheduled to work for another three months.",employment
+"My overtime appears in the attendance records but was left out of the latest payslip.",employment
+"The company closed my office access and told me not to return, but I have received no written notice.",employment
+"A supervisor repeatedly assigns me duties outside my role and threatens to cut my pay if I object.",employment
+"My salary arrives weeks late each month, making it difficult to plan around the stated payday.",employment
+"I was asked to sign a resignation letter immediately after raising a concern about missing wages.",employment
+"My employer has not provided the incentive amount described in my written compensation plan.",employment
+"The payroll team says my bank details are wrong, although they have not identified any issue with the account.",employment
+"My work schedule was changed overnight and I was removed from shifts after asking for an explanation.",employment
+"I returned company equipment when my job ended, but the employer is still holding my last paycheck.",employment
+"Several colleagues and I found that our payslips list fewer workdays than we actually completed.",employment
+"My manager says I am an independent contractor, but I follow a fixed staff schedule and report to the office daily.",employment
+"I was suspended after reporting a safety concern, and nobody has told me how long the suspension will last.",employment
+"The business transferred me to a distant branch without asking, and I cannot get a response about the change.",employment
+"I received a termination message while on approved leave and the company has not answered my request for details.",employment
+"My employer deducted money for a uniform that I already returned in good condition.",employment
+"The hiring manager described a fixed monthly salary, but my first payment was much lower and no breakdown was shared.",employment
+"I have not been paid for my final week even though I completed the handover requested by my supervisor.",employment
+"My department was told to work on a public holiday, but those hours were absent from the attendance summary.",employment
+"I reported unwanted comments from a coworker, and afterward my shifts were cut without an explanation.",employment
+"The company changed my role and pay after I relocated for the position, contrary to what was discussed in my offer.",employment
+"My employer has kept my original certificates after I asked for them back when leaving the job.",employment
+"A staffing agency says the client has not paid it, so it cannot pay me for work already completed.",employment
+"I was marked absent on days when the office was closed, and payroll deducted those days from my monthly pay.",employment
+"The landlord has not returned my security deposit even though I handed over the apartment and keys weeks ago.",rental_property
+"I reported a leaking ceiling several times, but the property owner has not arranged an inspection or repair.",rental_property
+"My rent receipt lists a higher amount than I paid, and the landlord will not correct the record.",rental_property
+"The owner says I must leave next week, but I have only received informal messages and no clear explanation.",rental_property
+"A new tenant moved into part of the home I rent, and the landlord refuses to discuss the shared space.",rental_property
+"The apartment has had no working water heater for a month despite repeated maintenance requests.",rental_property
+"My landlord increased the monthly rent midway through the written rental period and wants the new amount immediately.",rental_property
+"I paid a deposit before moving in, but the owner denies receiving it even though I have a payment receipt.",rental_property
+"The landlord entered the rented house while I was away and moved my belongings without contacting me first.",rental_property
+"I gave notice that I was moving out, but the landlord says I must keep paying after the agreed end date.",rental_property
+"Repairs to the stairwell were promised before I signed, but they remain unfinished and create access problems.",rental_property
+"The owner refuses to fix an electrical fault and tells me to arrange and pay for the work myself.",rental_property
+"My rent was paid on time, but the landlord posted a notice claiming that I owe several months of arrears.",rental_property
+"The rental listing included parking, but after moving in the property manager says the space is unavailable.",rental_property
+"My landlord will not provide a copy of the signed rental agreement after collecting the advance payment.",rental_property
+"The owner is keeping part of my deposit for repainting without sharing an itemized explanation.",rental_property
+"A contractor sent by the landlord damaged a door during repairs, and the owner will not respond about fixing it.",rental_property
+"I was told that pets were allowed before moving in, but now the building manager is demanding that I remove my dog.",rental_property
+"The landlord changed the front door lock while I was at work and has not given me a replacement key.",rental_property
+"My family was asked to vacate immediately after questioning a charge that was not listed in our rental paperwork.",rental_property
+"The property manager keeps scheduling inspections without notice and will not agree on a convenient time.",rental_property
+"I paid rent to the agent named by the owner, but the owner claims the payment was never received.",rental_property
+"The kitchen has a persistent water leak, and the landlord has cancelled two appointments to inspect it.",rental_property
+"Our building association blocked access to a shared entrance used by tenants, and nobody explains how to restore it.",rental_property
+"The owner says the deposit will be returned only if I find a replacement tenant, which was not discussed when I moved in.",rental_property
+"My lease renewal was confirmed in messages, but the landlord is now demanding that I leave at the original end date.",rental_property
+"The rental home was advertised as furnished, but several listed appliances were missing when I received the keys.",rental_property
+"A wall in my rented room has visible damp patches, and the owner says it is only a cosmetic issue.",rental_property
+"The landlord has not acknowledged my move-out inspection and is still charging rent for days after I returned the keys.",rental_property
+"I am being asked to pay for a building repair that serves the entire property, and the manager will not share the bill.",rental_property
+"I bought a new mixer grinder that stopped working after the first use, but the store declined to inspect it.",consumer
+"The online seller promised delivery by a specific date, then cancelled the order and has not returned my payment.",consumer
+"A phone advertised with a large storage capacity arrived with a different specification on its packaging.",consumer
+"The repair service charged me for a replacement part but returned the appliance with the same problem.",consumer
+"I cancelled a subscription during its trial period, yet the company charged my card again the following month.",consumer
+"The packaged food I received was damaged, and customer support closed my complaint without offering a resolution.",consumer
+"A travel booking site changed the hotel after payment and refuses to refund the difference in price.",consumer
+"The shop added an installation fee after I had already agreed to the quoted price for a new appliance.",consumer
+"My new shoes began separating at the sole within days, but the seller says they cannot be returned.",consumer
+"A delivery service marked my parcel as handed over even though neither I nor anyone at home received it.",consumer
+"The advertised internet plan promised a certain speed, but the connection is consistently much slower.",consumer
+"I paid for a phone screen repair, and the replacement began flickering before I reached home.",consumer
+"The seller's product page showed a different model than the one delivered, and support has stopped replying.",consumer
+"A clinic charged me for a service that was not included in the estimate and will not provide a clear bill.",consumer
+"I returned an unopened item within the shop's stated return period, but the refund has not appeared.",consumer
+"An online course was described as including live sessions, but only prerecorded videos were made available.",consumer
+"The courier demanded an extra cash payment for a package even though shipping was marked prepaid.",consumer
+"My washing machine is still under the seller's service plan, but the repair request has been rejected without inspection.",consumer
+"A furniture shop delivered a table with a cracked top and wants me to pay for collection before discussing replacement.",consumer
+"I was billed twice for one grocery order, and the delivery app has not corrected the duplicate charge.",consumer
+"I resigned after a long notice period, but the payroll team has not transferred the salary for my final month.",employment
+"My former company says my last payment is pending approval and has given no date or written explanation.",employment
+"The employer deducted an amount from my final wages for equipment I returned before leaving.",employment
+"After I submitted my resignation, my manager stopped responding about the unpaid weeks I had already worked.",employment
+"My monthly salary is short by several days of pay, although my attendance record shows I worked the full month.",employment
+"The business has delayed my wages repeatedly and now says it may hold the next payment too.",employment
+"I was promised a fixed salary in my offer letter, but the amount transferred is lower and payroll has not explained it.",employment
+"My employer has not paid the bonus listed in my written compensation plan and will not answer my questions.",employment
+"The company has held back my last paycheck because of a disputed handover, even though I returned my work items.",employment
+"I left my job after giving notice, but the employer has not provided the final wage statement or payment.",employment
+"My supervisor asked me to resign and then the company withheld pay for shifts I had already completed.",employment
+"A staffing firm says the client has not reimbursed it, so it is delaying my wages for completed assignments.",employment
+"My salary was reduced without notice after I moved to a different team, and HR has not provided a breakdown.",employment
+"The employer has not paid my approved overtime and the hours are visible in the work roster.",employment
+"Payroll marked my final week as unpaid leave even though my manager approved the work schedule.",employment
+"I paid a refundable work-equipment deposit when I joined, but the employer has not returned it after I left and handed everything back.",employment
+"The company withheld a joining deposit from my pay and now says it will not refund it after my resignation.",employment
+"My employer stopped assigning shifts after I asked when my delayed wages would be paid.",employment
+"I was dismissed shortly before payday and still have not received the wages for days I worked.",employment
+"The employer says my resignation is not accepted and is holding the salary earned before I left.",employment
+"My pay statement shows a deduction for a uniform deposit, but the employer will not explain when it will be returned.",employment
+"I moved out of a rented flat and returned the keys, but the owner has kept the deposit without sending an itemized account.",rental_property
+"The landlord has not refunded my security money after the agreed tenancy ended and the room was handed back.",rental_property
+"I paid a deposit to reserve an apartment, but the owner cancelled the move-in and refuses to return the payment.",rental_property
+"My landlord says the entire deposit will be kept for cleaning, although I asked for details and a copy of the inspection notes.",rental_property
+"The owner is withholding my deposit because of ordinary wear in the apartment and has not explained the deductions.",rental_property
+"The property manager received my move-out notice but continues to demand rent for the period after I returned possession.",rental_property
+"My landlord increased the rent during the agreed rental term and is asking me to pay the difference immediately.",rental_property
+"The rent receipt has a different amount from the payment I made, and the owner will not correct it.",rental_property
+"I paid rent to the property manager on time, but the landlord is claiming that the month remains unpaid.",rental_property
+"The owner sent messages telling my family to leave this week, even though we have not agreed on a move-out date.",rental_property
+"My landlord threatened to change the locks after I questioned an extra charge in the rental statement.",rental_property
+"The owner wants me to vacate immediately and has not explained the reason for ending our rental arrangement.",rental_property
+"The rental agreement lists a parking space that the building manager now says is not included.",rental_property
+"The landlord refuses to give me a signed copy of the agreement after collecting advance rent and a deposit.",rental_property
+"My lease renewal was discussed by email, but the owner is now asking me to leave when the old term ends.",rental_property
+"A clause about who pays for plumbing repairs is unclear, and the landlord refuses to discuss the repair bill.",rental_property
+"Water is leaking through the ceiling in my rented home, but the property owner has cancelled each repair visit.",rental_property
+"The landlord has not fixed an unsafe electrical outlet after I reported it and shared photographs.",rental_property
+"The heating system in the apartment stopped working, and the property manager has not arranged maintenance.",rental_property
+"I reported damp and mould in the rented bedroom several times, but the owner says it is not their responsibility.",rental_property
+"My landlord will not repair the broken entrance lock and has not responded to my written maintenance requests.",rental_property
+"The shop approved my return request but has not sent the refund, and customer support keeps closing the ticket.",consumer
+"I cancelled an online order before shipment, but the seller charged me and will not return the payment.",consumer
+"A new refrigerator stopped cooling within days, and the retailer refuses to arrange an inspection or replacement.",consumer
+"The repair company charged for a completed service, but the same fault remains and it will not revisit the appliance.",consumer
+"An online course was advertised with individual tutoring, but no tutor was provided and the provider rejected my refund request.",consumer
+"The travel booking site changed my confirmed room and refuses to return the price difference.",consumer
+"I was charged twice for one purchase, but the merchant says its records show only a single payment.",consumer
+"The product listing promised a specific battery capacity, but the item delivered has a much smaller one.",consumer
+"The seller advertised free installation and later added a fee to the invoice that I did not agree to.",consumer
+"My subscription was cancelled in the app, but the service provider continued charging my card.",consumer
+"The courier marked my package delivered, although it never arrived, and the seller will not investigate the missing order.",consumer
+"A paid home-repair service left the work unfinished and the company refuses to discuss a partial refund.",consumer
+"The warranty service returned my device without repairing it and closed my request as resolved.",consumer
+"The product packaging described a different model from the one inside, and the store declined my exchange request.",consumer
+"A clinic charged more than the written estimate and has not provided an itemized bill despite my requests.",consumer
+"My payment was deducted for an online order that the seller says was never received, and neither side has refunded it.",consumer
+"The advertised internet plan included a speed guarantee in its sales material, but the provider has not responded to my service complaint.",consumer
+"I returned an unopened item according to the store's return instructions, but the refund has not appeared on my statement.",consumer
+"The mechanic billed me for a replacement part but installed a used component and will not correct the invoice.",consumer
+"A food delivery arrived damaged, and the app rejected my request for reimbursement without explaining why.",consumer
+"The product label claimed a material that is not listed on the item I received, and the seller will not clarify.",consumer
+"A mobile service provider continued charging for an add-on after confirming by chat that it had been cancelled.",consumer
+"The technician left before finishing the paid installation and the company has not sent anyone back.",consumer
+"I booked a bus ticket through an app, but the operator cancelled the trip and the app has not processed reimbursement.",consumer
+"The package contained a used device instead of the new one shown in the listing, and the return request was denied.",consumer
+"A store employee promised free delivery, but the final invoice included a delivery charge that was not discussed.",consumer
+"My paid water purifier service visit was marked complete even though the technician never arrived.",consumer
+"The warranty card was missing from a newly purchased item, and the seller has not replied to my request for it.",consumer
+"I ordered a specific fabric colour from a catalogue, but the delivered item is a different shade and cannot be exchanged.",consumer
+"The bank's payment page showed a failed order, but my account was charged and the merchant says no payment arrived.",consumer
